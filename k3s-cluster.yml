@@ -1,0 +1,31 @@
+- name: Установка однонодового k3s cluster
+  hosts: k3s-cluster
+  become: true
+
+  tasks:
+    - name: Обновление списка пакетов
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Скачивание и установка k3s
+      ansible.builtin.shell: |
+          curl -sfL https://get.k3s.io | sh -
+      args:
+          creates: /usr/local/bin/k3s
+      register: k3s_install
+
+    - name: Скачивание helm
+      ansible.builtin.shell: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        creates: /usr/local/bin/helm
+      register: helm_install
+
+    - name: Добавление Harbor
+      ansible.builtin.shell: |
+          helm repo add harbor https://helm.goharbor.io
+          helm repo update
+      args:
+        creates: /root/.cache/helm/repository/harbor-index.yaml
+      register: harbor_repo_add
