@@ -14,27 +14,15 @@
           state: present
     - name: Скачивание и установка k3s
       ansible.builtin.shell: |
-          curl -sfL https://get.k3s.io | INSTALL_K3S_SKIP_ENABLE=true sh -
+          curl -sfL https://get.k3s.io |  sh -
       args:
-          creates: /usr/local/bin/k3s
+          creates: /etc/rancher/k3s
       register: k3s_install
 
-    - name: Запуск K3s сервера в фоновом режиме
+    - name: Запуск кластера
       ansible.builtin.shell: |
-        nohup /usr/local/bin/k3s server \
-          --bind-address=0.0.0.0 \
-          --https-listen-port=6443 \
-          > /var/log/k3s.log 2>&1 &
-      args:
-        creates: /var/lib/rancher/k3s/server/token
+        systemctl start k3s
       register: k3s_start
-      async: 10
-      poll: 0
-
-    - name: Снятие taint с control-plane
-      ansible.builtin.command: kubectl taint nodes --all node-role.kubernetes.io/master-
-      register: taint_result
-
     - name: Скачивание и установка helm
       ansible.builtin.shell: |
         curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
@@ -44,8 +32,52 @@
 
     - name: Добавление Harbor
       ansible.builtin.shell: |
-          /usr/local/bin/helm repo add harbor https://helm.goharbor.io
-          /usr/local/bin/helm repo update
+          helm repo add harbor https://helm.goharbor.io
+          helm repo update
       args:
         creates: /root/.cache/helm/repository/harbor-index.yaml
       register: harbor_repo_add
+    - name: Создание namespace для Harbor
+      ansible.builtin.command:
+        cmd: kubectl create namespace harbor --kubeconfig /etc/rancher/k3s/k3s.yaml
+      register: create_ns
+      failed_when: false
+
+    - name: Установка Harbor
+      ansible.builtin.shell: |
+        helm install harbor harbor/harbor \
+          --namespace harbor \
+          --kubeconfig /etc/rancher/k3s/k3s.yaml \
+          --set expose.type=nodePort \
+          --set expose.tls.enabled=false \
+          --set externalURL=http://{{ ansible_default_ipv4.address }}:30002
+      register: harbor_install
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      failed_when: false
+
+    - name: Добавление репозитория Istio
+      ansible.builtin.shell: |
+        /usr/local/bin/helm repo add istio https://istio-release.storage.googleapis.com/charts
+        /usr/local/bin/helm repo update
+
+    - name: Создание namespace для Istio
+      ansible.builtin.command:
+        cmd: kubectl create namespace istio-system --kubeconfig /etc/rancher/k3s/k3s.yaml
+      failed_when: false
+
+    - name: Установка istio-base
+      ansible.builtin.shell: |
+        /usr/local/bin/helm install istio-base istio/base -n istio-system \
+        --kubeconfig /etc/rancher/k3s/k3s.yaml
+      failed_when: false
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Установка istiod
+      ansible.builtin.shell: |
+        /usr/local/bin/helm install istiod istio/istiod -n istio-system \
+          --kubeconfig /etc/rancher/k3s/k3s.yaml \
+          --wait
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
