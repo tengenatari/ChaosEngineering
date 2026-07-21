@@ -19,7 +19,6 @@ echo ""
 echo "Сервисы в Harbor:"
 sudo kubectl get svc -n $NAMESPACE
 
-# Используем Ingress Gateway (порт 30080)
 NODE_IP=\$(sudo kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
 HARBOR_PORT=30080
 
@@ -28,9 +27,6 @@ echo "Проверка работы ДО внедрения ошибки:"
 echo "Время ответа API:"
 time curl -k -s -o /dev/null -w "HTTP Status: %{http_code}\\n" http://\${NODE_IP}:\${HARBOR_PORT}/api/v2.0/health
 
-echo "Время доступа к репозиториям"
-
-curl -u admin:Harbor12345 http://10.130.0.21:30080/api/v2.0/projects/library/repositories
 
 echo ""
 echo "Детальный ответ:"
@@ -47,9 +43,7 @@ echo ""
 echo "Проверка работы ПОСЛЕ внедрения ошибки:"
 echo "Время ответа API:"
 time curl -k -s -o /dev/null -w "HTTP Status: %{http_code}\\n" http://\${NODE_IP}:\${HARBOR_PORT}/api/v2.0/health
-echo "Время доступа к репозиториям"
 
-curl -u admin:Harbor12345 http://10.130.0.21:30080/api/v2.0/projects/library/repositories
 
 echo ""
 echo "Детальный ответ после внедрения ошибки:"
