@@ -1,1 +1,0 @@
-ssh ansible@51.250.32.193 -i ansible_key -p 2222
