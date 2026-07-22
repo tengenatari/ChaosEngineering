@@ -85,7 +85,7 @@
     - name: Add Istio Helm repository
       shell: helm repo add istio https://istio-release.storage.googleapis.com/charts && helm repo update
 
-    - name: Install Istio Ingress Gateway
+    - name: Установка Istio Ingress Gateway
       shell: |
         helm install istio-ingressgateway istio/gateway -n istio-system \
           --kubeconfig /etc/rancher/k3s/k3s.yaml \
@@ -101,10 +101,10 @@
           --wait
       ignore_errors: yes
 
-    - name: Enable Istio sidecar injection for harbor
+    - name: Врубаем Istio sidecar инъекцию
       shell: kubectl label namespace harbor istio-injection=enabled --overwrite
 
-    - name: Restart Harbor pods for sidecar injection
+    - name: Рестарт Harbor подиков for sidecar инъекции
       shell: kubectl rollout restart deployment -n harbor
     - name: Создание Gateway для Harbor
       ansible.builtin.shell: |
